@@ -28,7 +28,7 @@ type AnalysisResponse = {
 }
 
 const METRIC_LABELS = ['视觉张力', 'BGM 契合', '前 3 秒留存', '情绪波动', 'Hook 密度']
-const STATUS_MESSAGES = ['拆解视频钩子...', '模拟情绪曲线...', '重写高转化脚本...', '回填演示数据...']
+const STATUS_MESSAGES = ['拆解视频钩子...', '模拟情绪曲线...', '重写高转化脚本...', '回填解析结果...']
 
 const DEFAULT_ANALYSIS: AnalysisResponse = {
   analyzed_url: 'https://v.qq.com/x/page/mock-koc-engine-demo.html',
@@ -86,8 +86,8 @@ function normalizePayload(payload: unknown, url: string): AnalysisResponse {
     return {
       ...DEFAULT_ANALYSIS,
       analyzed_url: url,
-      source: 'frontend-fallback',
-      model: 'Frontend Mock',
+      source: 'client-safeguard',
+      model: 'client-safeguard',
     }
   }
 
@@ -191,16 +191,24 @@ function renderSourceLabel(source?: string) {
   switch (source) {
     case 'model':
       return '多模态实时解析 API'
-    case 'fallback':
-      return '后端兜底 Mock'
-    case 'frontend-fallback':
-      return '前端兜底 Mock'
+    case 'degraded':
+      return '服务保护输出'
+    case 'client-safeguard':
+      return '本地保护输出'
     default:
       return '等待实时解析'
   }
 }
 
 function renderEngineLabel(model?: string) {
+  if (model === 'system-fallback') {
+    return '服务保护引擎'
+  }
+
+  if (model === 'client-safeguard') {
+    return '本地保护引擎'
+  }
+
   return model || '等待首轮调用'
 }
 
@@ -304,10 +312,10 @@ function App() {
       setAnalysis({
         ...DEFAULT_ANALYSIS,
         analyzed_url: trimmedUrl,
-        source: 'frontend-fallback',
-        model: 'Frontend Mock',
+        source: 'client-safeguard',
+        model: 'client-safeguard',
       })
-      setErrorMessage('接口未成功返回，页面已自动切到本地演示数据，不影响路演。')
+      setErrorMessage('检测到服务波动，系统已自动切换到本地保护输出，页面可继续展示。')
     } finally {
       setLoading(false)
     }

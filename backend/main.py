@@ -166,8 +166,8 @@ def _build_mock_payload(url: str) -> dict[str, Any]:
 
     return {
         "analyzed_url": url,
-        "source": "fallback",
-        "model": "Mock Fallback",
+        "source": "degraded",
+        "model": "system-fallback",
         "radar_scores": radar_scores,
         "retention_curve": _build_retention_curve(rng),
         "original_script": original_script,

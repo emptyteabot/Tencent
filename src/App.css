@@ -258,6 +258,40 @@
   gap: 1rem;
 }
 
+.analysis-progress {
+  display: grid;
+  gap: 0.65rem;
+  border: 1px solid rgba(61, 135, 255, 0.2);
+  border-radius: 1rem;
+  background: rgba(61, 135, 255, 0.08);
+  padding: 0.9rem 1rem;
+}
+
+.analysis-progress__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--text-2);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.analysis-progress__track {
+  height: 0.45rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.analysis-progress__track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3d87ff, #1ed4c1);
+  animation: progress-fill 2.4s ease-out both;
+}
+
 .hero-pill {
   display: grid;
   gap: 0.35rem;
@@ -659,6 +693,16 @@
   }
 }
 
+@keyframes progress-fill {
+  from {
+    width: 8%;
+  }
+
+  to {
+    width: 100%;
+  }
+}
+
 @media (max-width: 1180px) {
   .topbar,
   .board {
@@ -696,8 +740,11 @@
   }
 
   .nav-cluster {
-    display: flex;
-    flex-wrap: wrap;
+    display: none;
+  }
+
+  .nav-foot {
+    display: none;
   }
 
   .hero-form,

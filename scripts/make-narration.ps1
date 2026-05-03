@@ -1,0 +1,28 @@
+$paragraphs = @(
+  '各位评委好。PCG 当前面对的内容供给难题，不是没有创作者，而是长尾创作者的产出效率太低，试错成本太高。很多内容仍然依赖灵感和偶然的网感，这导致优质内容供给不稳定，也很难形成工业化扩张。'
+  'KOC-Engine 针对的不是替代创作者，而是提供一个决策支持原型。我们的目标，是把爆款内容里的结构性规律，转化为创作者和平台都能复用的内容生产流水线。'
+  '现在我输入一个测试链接。点击解析之后，系统会进入标准化分析流程。大家现在看到的雷达图、留存曲线和脚本 Diff，是为了演示：如果我们把视频拆成视觉张力、情绪波峰、前 3 秒抓取能力和 Hook 密度这些可解释特征，平台就可以形成一套可复用的分析框架。'
+  '在当前 MVP 中，这些结果以预测沙盘的方式呈现，目的是验证内容工业化的分析逻辑，而不是宣称今天已经完成了所有底层技术闭环。'
+  '这个原型里最关键的模块，是下方的脚本 Diff。左侧是普通创作者常见的表达方式，信息铺陈慢，痛点不集中，转化节点不清晰。右侧则是重构后的高转化脚本版本，它会把利益点前置，把证据和场景嵌入中段，再用更强的 CTA 做收口。'
+  '所以 KOC-Engine 的核心价值，并不是单纯生成一段文案，而是把低效率、难复制的创作方式，变成可以被平台、运营和创作者共同使用的标准化 SOP。'
+  '从商业角度，这套原型背后的逻辑是清晰的。第一，通过标准化拆解和脚本重构，中腰部 KOC 的内容生产耗时有机会显著缩短，这意味着单篇有效内容的边际生产成本会下降。第二，如果 Hook、情绪波峰和 CTA 的位置能够被更稳定地对齐，那么次日留存和转化率就存在可验证的上升空间。'
+  '因此，我们把 KOC-Engine 定义为一个围绕 LTV 除以 CAC 优化的内容增长沙盘。今天展示的是一个前端原型和商业推演框架；而在真实的大厂业务场景、真实数据和真实算力接入后，这套模型可以进一步接入 A/B Test 验证。谢谢各位评委。'
+)
+
+$text = $paragraphs -join "`r`n`r`n"
+
+Add-Type -AssemblyName System.Speech
+$speaker = New-Object System.Speech.Synthesis.SpeechSynthesizer
+$voice = $speaker.GetInstalledVoices() |
+  Where-Object { $_.VoiceInfo.Culture.Name -eq 'zh-CN' } |
+  Select-Object -First 1
+
+if ($voice) {
+  $speaker.SelectVoice($voice.VoiceInfo.Name)
+}
+
+$speaker.Rate = 1
+$speaker.Volume = 100
+$speaker.SetOutputToWaveFile('C:\Users\cyh\Downloads\腾讯十万\提交包\KOC-Engine_3分钟路演旁白.wav')
+$speaker.Speak($text)
+$speaker.Dispose()

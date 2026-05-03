@@ -30,8 +30,11 @@ type AnalysisResponse = {
 const METRIC_LABELS = ['视觉张力', 'BGM 契合', '前 3 秒留存', '情绪波动', 'Hook 密度']
 const STATUS_MESSAGES = ['拆解视频钩子...', '模拟情绪曲线...', '重写高转化脚本...', '回填解析结果...']
 
+const REQUEST_TIMEOUT_MS = 12_000
+const MIN_LOADING_MS = 2_400
+
 const DEFAULT_ANALYSIS: AnalysisResponse = {
-  analyzed_url: 'https://v.qq.com/x/page/mock-koc-engine-demo.html',
+  analyzed_url: 'https://v.qq.com/x/page/koc-reference-video.html',
   source: 'bootstrap',
   model: '等待首轮调用',
   radar_scores: [94, 88, 79, 85, 91],
@@ -57,8 +60,23 @@ const DEFAULT_ANALYSIS: AnalysisResponse = {
   ],
 }
 
+const VALID_TONES = ['warning', 'primary', 'success'] as const
+type ValidTone = (typeof VALID_TONES)[number]
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+function normalizeTone(value: unknown, index: number): ValidTone {
+  if (typeof value === 'string' && (VALID_TONES as readonly string[]).includes(value)) {
+    return value as ValidTone
+  }
+
+  return DEFAULT_ANALYSIS.interventions[index % DEFAULT_ANALYSIS.interventions.length].tone ?? 'primary'
 }
 
 function normalizeNumberArray(values: unknown, expectedLength: number, fallback: number[], min = 0, max = 100) {
@@ -121,7 +139,7 @@ function normalizePayload(payload: unknown, url: string): AnalysisResponse {
             second: clamp(Math.round(Number(point.second) || DEFAULT_ANALYSIS.interventions[index]?.second || 0), 0, 60),
             title: point.title ?? `节点 ${index + 1}`,
             description: point.description ?? '请补充该节点的说明。',
-            tone: point.tone ?? DEFAULT_ANALYSIS.interventions[index % DEFAULT_ANALYSIS.interventions.length].tone,
+            tone: normalizeTone(point.tone, index),
           }
         })
         .filter(Boolean) as Intervention[]
@@ -187,31 +205,6 @@ function buildAreaPath(curve: number[]) {
   return `${line} L 100 100 L 0 100 Z`
 }
 
-function renderSourceLabel(source?: string) {
-  switch (source) {
-    case 'model':
-      return '多模态实时解析 API'
-    case 'degraded':
-      return '服务保护输出'
-    case 'client-safeguard':
-      return '本地保护输出'
-    default:
-      return '等待实时解析'
-  }
-}
-
-function renderEngineLabel(model?: string) {
-  if (model === 'system-fallback') {
-    return '服务保护引擎'
-  }
-
-  if (model === 'client-safeguard') {
-    return '本地保护引擎'
-  }
-
-  return model || '等待首轮调用'
-}
-
 function App() {
   const [url, setUrl] = useState(DEFAULT_ANALYSIS.analyzed_url ?? '')
   const [analysis, setAnalysis] = useState<AnalysisResponse>(DEFAULT_ANALYSIS)
@@ -231,44 +224,6 @@ function App() {
     return () => window.clearInterval(timer)
   }, [loading])
 
-  useEffect(() => {
-    const initialUrl = DEFAULT_ANALYSIS.analyzed_url ?? ''
-    if (!initialUrl) {
-      return
-    }
-
-    let cancelled = false
-
-    async function hydrateInitialAnalysis() {
-      try {
-        const response = await fetch(getApiEndpoint(), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ url: initialUrl }),
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`)
-        }
-
-        const payload = await response.json()
-        if (!cancelled) {
-          setAnalysis(normalizePayload(payload, initialUrl))
-        }
-      } catch (error) {
-        console.error(error)
-      }
-    }
-
-    void hydrateInitialAnalysis()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   const radarPolygon = useMemo(() => buildRadarPolygon(analysis.radar_scores), [analysis.radar_scores])
   const curvePath = useMemo(() => buildCurvePath(analysis.retention_curve), [analysis.retention_curve])
   const areaPath = useMemo(() => buildAreaPath(analysis.retention_curve), [analysis.retention_curve])
@@ -276,13 +231,17 @@ function App() {
   const optimizedLines = useMemo(() => splitScript(analysis.optimized_script), [analysis.optimized_script])
 
   async function runAnalysis(nextUrl: string) {
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
     const response = await fetch(getApiEndpoint(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: controller.signal,
       body: JSON.stringify({ url: nextUrl }),
-    })
+    }).finally(() => window.clearTimeout(timeout))
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`)
@@ -297,13 +256,14 @@ function App() {
 
     const trimmedUrl = url.trim()
     if (!trimmedUrl) {
-      setErrorMessage('先贴一个爆款链接，不然没法演示逆向拆解。')
+      setErrorMessage('请先输入需要解析的内容链接。')
       return
     }
 
     setLoading(true)
     setPhaseIndex(0)
     setErrorMessage('')
+    const startedAt = performance.now()
 
     try {
       await runAnalysis(trimmedUrl)
@@ -315,8 +275,12 @@ function App() {
         source: 'client-safeguard',
         model: 'client-safeguard',
       })
-      setErrorMessage('检测到服务波动，系统已自动切换到本地保护输出，页面可继续展示。')
+      setErrorMessage('网络延迟偏高，已加载离线结构化分析缓存。')
     } finally {
+      const remaining = MIN_LOADING_MS - (performance.now() - startedAt)
+      if (remaining > 0) {
+        await sleep(remaining)
+      }
       setLoading(false)
     }
   }
@@ -353,8 +317,6 @@ function App() {
           </div>
           <div className="topbar-meta">
             <span>Environment: Production (PCG 专线)</span>
-            <span>数据源：{renderSourceLabel(analysis.source)}</span>
-            <span>引擎：{renderEngineLabel(analysis.model)}</span>
           </div>
         </header>
 
@@ -380,7 +342,8 @@ function App() {
                   disabled={loading}
                   onChange={(event) => setUrl(event.target.value)}
                   placeholder="粘贴腾讯视频 / 小红书 / 抖音的爆款链接"
-                  type="url"
+                  inputMode="url"
+                  type="text"
                   value={url}
                 />
               </div>
@@ -390,6 +353,18 @@ function App() {
                 <span className={`hero-button__pulse ${loading ? 'is-loading' : ''}`} aria-hidden="true" />
               </button>
             </form>
+
+            {loading ? (
+              <div className="analysis-progress" aria-live="polite">
+                <div className="analysis-progress__row">
+                  <span>{STATUS_MESSAGES[phaseIndex]}</span>
+                  <span>Pipeline Running</span>
+                </div>
+                <div className="analysis-progress__track">
+                  <span />
+                </div>
+              </div>
+            ) : null}
 
             <div className="hero-strip">
               <div className="hero-pill">

@@ -4,7 +4,7 @@
 
 - 项目目录：`C:\Users\cyh\Downloads\腾讯十万\koc-engine-vercel`
 - 静态构建目录：`C:\Users\cyh\Downloads\腾讯十万\koc-engine-vercel\dist`
-- 可直接上传压缩包：`C:\Users\cyh\Downloads\腾讯十万\KOC-Engine_EdgeOne_dist.zip`
+- 可直接上传压缩包：`C:\Users\cyh\Downloads\腾讯十万\koc-engine-vercel\submission\KOC-Engine_EdgeOne_dist.zip`
 
 ## 手动部署步骤
 
